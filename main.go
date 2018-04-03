@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/tamsanh/go_lock2/actions"
+	"github.com/tamsanh/go_lock/actions"
 )
 
 func main() {

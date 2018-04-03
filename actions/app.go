@@ -27,7 +27,8 @@ func App() *buffalo.App {
 			PreWares: []buffalo.PreWare{
 				cors.Default().Handler,
 			},
-			SessionName: "_go_lock2_session",
+			SessionName: "_go_lock_session",
+			Addr: "127.0.0.1:55555",
 		})
 		// Automatically redirect to SSL
 		app.Use(ssl.ForceSSL(secure.Options{
@@ -44,6 +45,9 @@ func App() *buffalo.App {
 
 		app.GET("/", HomeHandler)
 
+		app.GET("/lock/create", LockCreate)
+		app.GET("/lock/heartbeat", LockHeartbeat)
+		app.GET("/lock/status", LockStatus)
 	}
 
 	return app

@@ -8,7 +8,7 @@ node_modules/
 .sass-cache/
 *-packr.go
 public/assets/
-go_lock2
+go_lock
 .vscode/
 .grifter/
 .env

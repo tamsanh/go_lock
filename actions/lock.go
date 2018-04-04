@@ -83,23 +83,30 @@ func LockCreate(c buffalo.Context) error {
 	// name gets locked, seconds is set
 	nameIsLocked := namedLocks.isLocked[name]
 	if secondsWasSet && nameIsLocked {
+		fmt.Printf("Failed Lock %s: Still locked\n", name)
 		renderString = "failed"
 	} else if secondsWasSet && !nameIsLocked {
 		// Check if we are within timeout time
 		lastBeat := namedLocks.beats[name]
 		timeDifference := time.Now().Sub(lastBeat)
 		if int64(timeDifference.Seconds()) > secondsInt {
+			staleness := secondsInt - int64(timeDifference.Seconds())
 			namedLocks.isLocked[name] = true
 			namedLocks.beats[name] = time.Now()
+			fmt.Printf("Locked %s: Stale by %s Seconds\n", name, staleness)
 			renderString = "success"
 		} else {
+			freshness := int64(timeDifference.Seconds()) - secondsInt
+			fmt.Printf("Ignore Lock %s: Fresh by %s seconds\n", name, freshness)
 			renderString = "fresh"
 		}
 	} else if !secondsWasSet && !nameIsLocked {
 		namedLocks.isLocked[name] = true
 		namedLocks.beats[name] = time.Now()
+		fmt.Printf("Locked %s\n", name)
 		renderString = "success"
 	} else if !secondsWasSet && nameIsLocked {
+		fmt.Printf("Failed Lock %s: Still locked\n", name)
 		renderString = "failed"
 	}
 

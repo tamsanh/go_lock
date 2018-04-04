@@ -47,7 +47,8 @@ func App() *buffalo.App {
 
 		app.GET("/lock/create", LockCreate)
 		app.GET("/lock/heartbeat", LockHeartbeat)
-		app.GET("/lock/status", LockStatus)
+
+		go UnlockStaleLocks(90)
 	}
 
 	return app

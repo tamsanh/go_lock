@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 	"fmt"
+	"strconv"
 )
 
 
@@ -63,20 +64,46 @@ func UnlockStaleLocks(timeout_seconds int) {
 func LockCreate(c buffalo.Context) error {
 	params := c.Params()
 	name := params.Get("name")
+	seconds := params.Get("stale_after")
+	secondsInt := int64(0)
 	if name == "" {
 		return c.Render(200, r.String("failed"))
 	}
+	secondsWasSet := false
+	if seconds != "" {
+		secondsInt, _ = strconv.ParseInt(seconds, 10, 64)
+		secondsWasSet = true
+	}
+
 	namedLocks.mux.Lock()
 	defer namedLocks.mux.Unlock()
 
-	if namedLocks.isLocked[name] {
-		return c.Render(200, r.String("failed"))
-	} else {
-		fmt.Println("Locking name " + name)
+	renderString := "failed"
+
+	// name gets locked, seconds is set
+	nameIsLocked := namedLocks.isLocked[name]
+	if secondsWasSet && nameIsLocked {
+		renderString = "failed"
+	} else if secondsWasSet && !nameIsLocked {
+		// Check if we are within timeout time
+		lastBeat := namedLocks.beats[name]
+		timeDifference := time.Now().Sub(lastBeat)
+		if int64(timeDifference.Seconds()) > secondsInt {
+			namedLocks.isLocked[name] = true
+			namedLocks.beats[name] = time.Now()
+			renderString = "success"
+		} else {
+			renderString = "fresh"
+		}
+	} else if !secondsWasSet && !nameIsLocked {
 		namedLocks.isLocked[name] = true
 		namedLocks.beats[name] = time.Now()
-		return c.Render(200, r.String("success"))
+		renderString = "success"
+	} else if !secondsWasSet && nameIsLocked {
+		renderString = "failed"
 	}
+
+	return c.Render(200, r.String(renderString))
 }
 
 // LockHeartbeat default implementation.
@@ -90,24 +117,3 @@ func LockHeartbeat(c buffalo.Context) error {
 	return c.Render(200, r.String(name))
 }
 
-// LockStatus default implementation.
-func LockStatus(c buffalo.Context) error {
-	params := c.Params()
-	name := params.Get("name")
-	if name == "" {
-		return c.Render(200, r.String("failed"))
-	}
-	namedLocks.mux.Lock()
-	defer namedLocks.mux.Unlock()
-	isLocked, exists := namedLocks.isLocked[name]
-	if isLocked {
-		return c.Render(200, r.String("locked"))
-	} else {
-		if exists {
-			lastTime := namedLocks.beats[name]
-			return c.Render(200, r.String(lastTime.UTC().Format(time.RFC3339)))
-		} else {
-			return c.Render(200, r.String("failed"))
-		}
-	}
-}

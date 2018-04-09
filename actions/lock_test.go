@@ -11,3 +11,11 @@ func (as *ActionSuite) Test_Lock_Heartbeat() {
 func (as *ActionSuite) Test_Lock_Status() {
 	as.Fail("Not Implemented!")
 }
+
+func (as *ActionSuite) Test_Lock_Destroy() {
+	as.Fail("Not Implemented!")
+}
+
+func (as *ActionSuite) Test_Lock_Unlock() {
+	as.Fail("Not Implemented!")
+}

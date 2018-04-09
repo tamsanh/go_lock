@@ -1,23 +1,21 @@
 package actions
 
 import (
-	"github.com/gobuffalo/buffalo"
-	"sync"
-	"time"
 	"fmt"
 	"strconv"
-)
+	"sync"
+	"time"
 
+	"github.com/gobuffalo/buffalo"
+)
 
 type NamedLocks struct {
 	isLocked map[string]bool
-	beats map[string]time.Time
-	mux sync.Mutex
+	beats    map[string]time.Time
+	mux      sync.Mutex
 }
 
-
-var namedLocks = NamedLocks{isLocked:make(map[string]bool), beats: make(map[string]time.Time)}
-
+var namedLocks = NamedLocks{isLocked: make(map[string]bool), beats: make(map[string]time.Time)}
 
 func (nl NamedLocks) unlockName(name string) {
 	fmt.Println("Unlocking name " + name)
@@ -26,7 +24,6 @@ func (nl NamedLocks) unlockName(name string) {
 	nl.mux.Unlock()
 }
 
-
 func (nl NamedLocks) beat(name string) {
 	nl.mux.Lock()
 	fmt.Println("Beating " + name)
@@ -34,24 +31,22 @@ func (nl NamedLocks) beat(name string) {
 	nl.mux.Unlock()
 }
 
-
-func (nl NamedLocks) isStale(name string, timeout_seconds int) bool {
+func (nl NamedLocks) isStale(name string, timeoutSeconds int) bool {
 	timeDifference := time.Now().Sub(nl.beats[name])
-	return int(timeDifference.Seconds()) >= timeout_seconds
+	return int(timeDifference.Seconds()) >= timeoutSeconds
 }
 
-
-func UnlockStaleLocks(timeout_seconds int) {
+func DestroyStaleLocks(timeoutSeconds int) {
 	checkInterval := time.Second * 30
 	for {
 		time.Sleep(checkInterval)
 		namedLocks.mux.Lock()
 		for name, isLocked := range namedLocks.isLocked {
 			if isLocked {
-				if namedLocks.isStale(name, timeout_seconds) {
+				if namedLocks.isStale(name, timeoutSeconds) {
 					fmt.Println("Unlocked " + name)
-					namedLocks.isLocked[name] = false
-					namedLocks.beats[name] = time.Now()
+					delete(namedLocks.isLocked, name)
+					delete(namedLocks.beats, name)
 				}
 			}
 		}
@@ -59,8 +54,6 @@ func UnlockStaleLocks(timeout_seconds int) {
 	}
 }
 
-
-// LockCreate default implementation.
 func LockCreate(c buffalo.Context) error {
 	params := c.Params()
 	name := params.Get("name")
@@ -113,7 +106,6 @@ func LockCreate(c buffalo.Context) error {
 	return c.Render(200, r.String(renderString))
 }
 
-// LockHeartbeat default implementation.
 func LockHeartbeat(c buffalo.Context) error {
 	params := c.Params()
 	name := params.Get("name")
@@ -124,3 +116,28 @@ func LockHeartbeat(c buffalo.Context) error {
 	return c.Render(200, r.String(name))
 }
 
+func LockDestroy(c buffalo.Context) error {
+	params := c.Params()
+	name := params.Get("name")
+	if name == "" {
+		return c.Render(200, r.String("failed"))
+	}
+	namedLocks.mux.Lock()
+	defer namedLocks.mux.Unlock()
+	delete(namedLocks.beats, name)
+	delete(namedLocks.isLocked, name)
+	return c.Render(200, r.String("success"))
+}
+
+func LockUnlock(c buffalo.Context) error {
+	params := c.Params()
+	name := params.Get("name")
+	if name == "" {
+		return c.Render(200, r.String("failed"))
+	}
+	namedLocks.mux.Lock()
+	defer namedLocks.mux.Unlock()
+	namedLocks.beats[name] = time.Now()
+	namedLocks.isLocked[name] = false
+	return c.Render(200, r.String("success"))
+}

@@ -112,7 +112,9 @@ func LockHeartbeat(c buffalo.Context) error {
 	if name == "" {
 		return c.Render(200, r.String("failed"))
 	}
-	namedLocks.beat(name)
+	if namedLocks.isLocked[name] {
+		namedLocks.beat(name)
+	}
 	return c.Render(200, r.String(name))
 }
 

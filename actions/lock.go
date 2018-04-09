@@ -44,7 +44,7 @@ func DestroyStaleLocks(timeoutSeconds int) {
 		for name, isLocked := range namedLocks.isLocked {
 			if isLocked {
 				if namedLocks.isStale(name, timeoutSeconds) {
-					fmt.Println("Unlocked " + name)
+					fmt.Println("Destroyed stale " + name)
 					delete(namedLocks.isLocked, name)
 					delete(namedLocks.beats, name)
 				}
@@ -83,14 +83,14 @@ func LockCreate(c buffalo.Context) error {
 		lastBeat := namedLocks.beats[name]
 		timeDifference := time.Now().Sub(lastBeat)
 		if int64(timeDifference.Seconds()) > secondsInt {
-			staleness := secondsInt - int64(timeDifference.Seconds())
+			staleness := int64(timeDifference.Seconds()) - secondsInt
 			namedLocks.isLocked[name] = true
 			namedLocks.beats[name] = time.Now()
-			fmt.Printf("Locked %s: Stale by %s Seconds\n", name, staleness)
+			fmt.Printf("Locked %s: Stale by %d Seconds\n", name, staleness)
 			renderString = "success"
 		} else {
-			freshness := int64(timeDifference.Seconds()) - secondsInt
-			fmt.Printf("Ignore Lock %s: Fresh by %s seconds\n", name, freshness)
+			freshness := secondsInt - int64(timeDifference.Seconds())
+			fmt.Printf("Ignore Lock %s: Fresh by %d seconds\n", name, freshness)
 			renderString = "fresh"
 		}
 	} else if !secondsWasSet && !nameIsLocked {
@@ -128,6 +128,7 @@ func LockDestroy(c buffalo.Context) error {
 	defer namedLocks.mux.Unlock()
 	delete(namedLocks.beats, name)
 	delete(namedLocks.isLocked, name)
+	fmt.Println("Destroyed " + name)
 	return c.Render(200, r.String("success"))
 }
 
@@ -141,5 +142,6 @@ func LockUnlock(c buffalo.Context) error {
 	defer namedLocks.mux.Unlock()
 	namedLocks.beats[name] = time.Now()
 	namedLocks.isLocked[name] = false
+	fmt.Println("Unlocked " + name)
 	return c.Render(200, r.String("success"))
 }
